@@ -72,6 +72,22 @@ class BudgetQuotationItem(QuotationContract):
     technical_differences: list[TechnicalDifference]
 
 
+class BudgetEconomicItem(QuotationContract):
+    section: Section
+    source_row: int = Field(gt=0)
+    unit_price: Price
+    total_price: Price
+
+
+class BudgetQuotationEconomics(QuotationContract):
+    status: str
+    currency_code: Literal["COP"]
+    project_total: Price | None
+    project_total_cell: str | None
+    items: list[BudgetEconomicItem]
+    main_item_totals_differ: bool | None
+
+
 class ConfirmedBudgetQuotation(QuotationContract):
     project_id: UUID
     quotation_version_id: UUID
@@ -79,6 +95,7 @@ class ConfirmedBudgetQuotation(QuotationContract):
     confirmed_at: datetime
     document: BudgetQuotationDocument
     items: list[BudgetQuotationItem]
+    economics: BudgetQuotationEconomics | None = None
 
 
 class CommercialQuotationItem(QuotationContract):

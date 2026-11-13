@@ -10,10 +10,19 @@ from app.contracts.client_decision import ClientQuotationDecision
 from app.contracts.documents import Document, ProjectDocuments
 from app.contracts.management import ManagementOverview, ManagementTask
 from app.contracts.notifications import ProjectNotification
+from app.contracts.operations import (
+    DepositVerifications,
+    Engineering,
+    IncrementalOpeningRecords,
+    Measurements,
+    OpeningFilings,
+    OpeningRecords,
+)
 from app.contracts.portfolio import ManagementQuotationPortfolio
 from app.contracts.projects import Project, ProjectTask
 from app.contracts.quotation_rounds import QuotationRounds
 from app.contracts.quotations import ConfirmedBudgetQuotation, ConfirmedCommercialQuotation
+from app.contracts.surfaces import ManagementSurfaces
 from app.core.errors import (
     AuthenticationRequired,
     BackendResponseError,
@@ -114,6 +123,108 @@ class SnGControlClient:
         except ValidationError:
             pass
         raise BackendResponseError()
+
+    async def get_management_surfaces(
+        self, project_id: UUID | None, skip: int, ascending: bool
+    ) -> ManagementSurfaces:
+        if type(skip) is not int or not 0 <= skip <= 1_000_000 or type(ascending) is not bool:
+            raise InvalidArguments()
+        path = f"/api/management/analytics/surfaces?skip={skip}&ascending={str(ascending).lower()}"
+        if project_id is not None:
+            project_id = validate_project_id(project_id)
+            path += f"&projectId={project_id}"
+        result = await self._get(path, TypeAdapter(ManagementSurfaces), "management_surfaces")
+        if result.skip != skip or (
+            project_id is not None and any(row.project_id != project_id for row in result.projects)
+        ):
+            raise BackendResponseError()
+        return result
+
+    async def get_deposit_verifications(
+        self, project_id: UUID | str
+    ) -> DepositVerifications | None:
+        identifier = validate_project_id(project_id)
+        try:
+            result = await self._get(
+                f"/api/projects/{identifier}/deposit-verifications",
+                TypeAdapter(DepositVerifications),
+                "deposit_verifications",
+            )
+        except ResourceNotFound:
+            return None
+        if result.project_id != identifier:
+            raise BackendResponseError()
+        if result.accounting.project_id != identifier:
+            raise BackendResponseError()
+        return result
+
+    async def get_project_measurements(self, project_id: UUID | str) -> Measurements | None:
+        identifier = validate_project_id(project_id)
+        try:
+            result = await self._get(
+                f"/api/projects/{identifier}/measurements",
+                TypeAdapter(Measurements),
+                "measurements",
+            )
+        except ResourceNotFound:
+            return None
+        if result.project_id != identifier:
+            raise BackendResponseError()
+        return result
+
+    async def get_project_engineering(self, project_id: UUID | str) -> Engineering | None:
+        identifier = validate_project_id(project_id)
+        try:
+            result = await self._get(
+                f"/api/projects/{identifier}/engineering", TypeAdapter(Engineering), "engineering"
+            )
+        except ResourceNotFound:
+            return None
+        if result.project_id != identifier:
+            raise BackendResponseError()
+        return result
+
+    async def get_project_opening_records(self, project_id: UUID | str) -> OpeningRecords | None:
+        identifier = validate_project_id(project_id)
+        try:
+            result = await self._get(
+                f"/api/projects/{identifier}/opening-records",
+                TypeAdapter(OpeningRecords),
+                "opening_records",
+            )
+        except ResourceNotFound:
+            return None
+        if result.project_id != identifier:
+            raise BackendResponseError()
+        return result
+
+    async def get_project_incremental_opening_records(
+        self, project_id: UUID | str
+    ) -> IncrementalOpeningRecords | None:
+        identifier = validate_project_id(project_id)
+        try:
+            result = await self._get(
+                f"/api/projects/{identifier}/incremental-opening-records",
+                TypeAdapter(IncrementalOpeningRecords),
+                "incremental_opening_records",
+            )
+        except ResourceNotFound:
+            return None
+        if result.project_id != identifier:
+            raise BackendResponseError()
+        return result
+
+    async def get_project_opening_filings(self, project_id: UUID | str) -> OpeningFilings | None:
+        identifier = validate_project_id(project_id)
+        try:
+            result = await self._get(
+                f"/api/projects/{identifier}/opening-filings",
+                TypeAdapter(OpeningFilings),
+                "opening_filings",
+            )
+        except ResourceNotFound:
+            return None
+        return result
 
     async def get_current_user(self) -> CurrentUser:
         return await self._get("/api/auth/me", TypeAdapter(CurrentUser), "auth_me")

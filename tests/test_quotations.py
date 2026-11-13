@@ -422,7 +422,7 @@ async def test_no_new_navigation_contract_or_silent_empty_fields(quotations):
     data = quotation_data(UUID(PROJECT_ID), "budget", parsed)
     assert data["items"][0]["lockType"] == ""
     assert data["items"][0]["imageStatus"] is None
-    assert "No sumes ni multipliques para crear totalSquareMeters" in SYSTEM_PROMPT
+    assert "no recalcules agregados oficiales" in SYSTEM_PROMPT
     assert "Nunca respondas preguntas sobre ítems" in SYSTEM_PROMPT
     assert "NUNCA uses tareas como fallback" in SYSTEM_PROMPT
     assert "no uses itemCount de una cotización como conteo de tareas" in SYSTEM_PROMPT

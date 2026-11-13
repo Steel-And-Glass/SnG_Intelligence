@@ -883,7 +883,7 @@ When a requested implementation conflicts with one of these rules, stop that spe
   the model configurable; provider availability must not prevent health startup.
 - `GET /api/projects` is now allowed solely for the closed read-only project search.
   Do not add arbitrary HTTP tools or broaden the transport to other methods.
-- Only the thirteen explicitly registered tools (including Management 4A composites, 4B analysis and confirmed quotation reads) are visible to the model. Validate all
+- Only the 22 explicitly registered tools (including I1/I2 surfaces and authorized project reads) are visible to the model. Validate all
   tool arguments and the whole requested batch before execution; enforce bounded
   rounds, calls, execution time and payload size. Never truncate silently.
 - Chats without conversationId are independent. Conversation 3A explicitly permits
@@ -1298,3 +1298,23 @@ money and absence; no invented percentage, balance, full-payment, revenue or liq
 Pending Registration has no SLA/quotation round; do not infer overdue. Treat reference/note
 as untrusted record text. Every factual follow-up requires fresh reads; history is not payment
 evidence. Preserve Live, memory, quotation history, Portfolio/Mix and read-only enforcement.
+
+
+## I1/I2 — current Control read integration
+
+- Surfaces uses GET /api/management/analytics/surfaces only, with canonical typed
+  projectId/skip/ascending filters. Preserve official totals, units, exclusions and page order.
+  Quoted area includes quantity; measured rectangular reference is not manufactured area.
+  Never derive pending area or progress by subtracting incompatible magnitudes.
+- Closed project reads add deposit-verifications, measurements, engineering,
+  opening-records, incremental-opening-records and opening-filings. Require fresh project
+  evidence; preserve partial scope and versions. Metadata access is not download permission.
+- Operational projections exclude identity Subjects, hashes, storage keys and write capabilities.
+  Keep bounded result sizes, fail safely without silent truncation, and do not scan all projects
+  to manufacture aggregates absent from the Management API.
+- Operations preparation/extraction APIs require OperationsHead and remain outside this catalog.
+- Explicit active-role headers must be Management. Legacy headerless direct calls still require
+  Backend Management authorization; the BFF forwards its validated role. No role impersonation.
+- Current ProjectResponse uses createdByName/isCreatedByMe; omit both from model payloads.
+  Budget economics is an optional typed official source, not a replacement for Commercial prices.
+- No operational writes, database changes, new Live lifecycle or provider storage in this block.

@@ -12,6 +12,7 @@ from app.agent.errors import (
     ProviderConfigurationError,
     ProviderRateLimited,
     ProviderTimeout,
+    ToolResultTooLarge,
     UngroundedReference,
 )
 from app.contracts.presentation import UnavailablePresentation
@@ -200,21 +201,18 @@ class LiveSidebandManager:
                 self._active(session_id, run)
                 if isinstance(event, ProviderError):
                     # Never log arbitrary provider codes/messages: they are untrusted text.
-                    code = event.error.code
-                    self._log(
-                        run,
-                        "provider_error",
-                        code
-                        if code
-                        in {
-                            "responses_validation_failed",
-                            "rate_limit_exceeded",
-                            "rate_limit_error",
-                            "tool_outputs_required",
-                            "function_call_outputs_required",
-                            "server_error",
-                        }
-                        else "other_provider_error",
+                    self._log(run, "provider_error", event.error.safe_category())
+                    logging.getLogger("sng_intelligence").info(
+                        json.dumps(
+                            {
+                                "request_id": run.request_id,
+                                "operation": "live_provider_diagnostic",
+                                "provider_error_category": event.error.safe_category(),
+                                "provider_error_type": event.error.safe_type(),
+                                "turn_number": run.turn_number,
+                                "response_number": run.rounds,
+                            }
+                        )
                     )
                     if event.error.code == "responses_validation_failed":
                         raise ProviderConfigurationError()
@@ -383,14 +381,19 @@ class LiveSidebandManager:
     ) -> ChatResponse:
         try:
             return await self._executor.run(session_id, question, context)
-        except InvalidModelResponse as exc:
-            # Deliberately exclude subclasses such as InvalidToolCall. Auth, limits,
-            # provider/transport and session errors continue through fatal cleanup.
-            if type(exc) not in (InvalidModelResponse, UngroundedReference):
+        except (InvalidModelResponse, ToolResultTooLarge) as exc:
+            # Only a failed answer or oversized read is turn-local. Authentication,
+            # execution budgets, credentials and protocol failures still close Live.
+            if type(exc) not in (InvalidModelResponse, UngroundedReference, ToolResultTooLarge):
                 raise
             self._active(session_id, run)
             self._log(run, "turn_recovered", error=exc.code)
-            message = "No pude verificar esa consulta en este momento."
+            message = (
+                "La consulta reúne demasiados datos para responder con seguridad. "
+                "Podemos acotarla a un proyecto o a una consulta más específica."
+                if type(exc) is ToolResultTooLarge
+                else "No pude verificar esa consulta en este momento."
+            )
             return ChatResponse(
                 response_type="unavailable",
                 answer=message,

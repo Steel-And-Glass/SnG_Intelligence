@@ -14,6 +14,7 @@ from app.agent.toolbox import ToolBox
 from app.auth.management_guard import extract_bearer, require_management
 from app.clients.sng_control import SnGControlClient
 from app.contracts.auth import CurrentUser
+from app.core.errors import ManagementRequired
 from app.tools import ReadTools
 
 
@@ -25,6 +26,9 @@ async def get_control_client(
 ) -> AsyncIterator[SnGControlClient]:
     # HTTPBearer documents the scheme; the existing strict guard remains authoritative.
     token = extract_bearer(request.headers.getlist("authorization"))
+    roles = request.headers.getlist("x-sng-active-role")
+    if roles and roles != ["Management"]:
+        raise ManagementRequired()
     client = SnGControlClient(request.app.state.control_http, token, request.state.request_id)
     del token
     try:

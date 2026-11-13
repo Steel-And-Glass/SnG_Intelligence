@@ -1,4 +1,5 @@
 import json
+import logging
 from uuid import UUID
 
 from pydantic import JsonValue, ValidationError
@@ -13,6 +14,7 @@ from app.agent.contracts import (
     Reference,
     SearchArguments,
     StrictModel,
+    SurfaceArguments,
     TaskReference,
     ToolCall,
     ToolDefinition,
@@ -26,6 +28,59 @@ from app.documents.service import DocumentAnalysisService, sources
 from app.tools import ReadTools
 
 TOOL_DEFINITIONS = (
+    ToolDefinition(
+        "get_management_surfaces",
+        "Official Management surface aggregates and ranked project page. project_id=null for "
+        "all projects; otherwise resolve the project freshly first. skip=0, ascending=false "
+        "for largest quoted areas. Preserve returned order and hasMore; totals cover the whole "
+        "cohort, not only this page. Quoted m2 already includes quantity. Measured m2 is "
+        "rectangular reference, not production. Preserve coverage/exclusions/null filed area. "
+        "No automatic difference or progress ratio. Use direct response with empty "
+        "presentation_keys.",
+        SurfaceArguments,
+    ),
+    ToolDefinition(
+        "get_deposit_verifications",
+        "Official receipt verification history for one freshly resolved project: pending, "
+        "approved, rejected reviews and deposit record. Not invoicing, revenue, balance or "
+        "all-project totals.",
+        ProjectArguments,
+    ),
+    ToolDefinition(
+        "get_project_measurements",
+        "Official physical structures, actual dimensions, submitted measurement deliveries "
+        "and coverage for one freshly resolved project. Current state and historical snapshot "
+        "are distinct. No image or sketch contents. No production inference.",
+        ProjectArguments,
+    ),
+    ToolDefinition(
+        "get_project_engineering",
+        "Official current engineering tasks, physical structures, packages, confirmed Actas "
+        "and their document versions for one freshly resolved project. Partial progress is "
+        "not whole-project completion. Responsible identity fields are not available.",
+        ProjectArguments,
+    ),
+    ToolDefinition(
+        "get_project_opening_records",
+        "Legacy opening-record rounds, client responses and versioned document metadata for "
+        "one freshly resolved project. Use for non-incremental projects; unavailable does not "
+        "imply no work.",
+        ProjectArguments,
+    ),
+    ToolDefinition(
+        "get_project_incremental_opening_records",
+        "Incremental Actas, presentation rounds, reviews and partial acceptances with "
+        "structure IDs and evidence versions for one freshly resolved project. Never count "
+        "repeated structures across rounds as new structures.",
+        ProjectArguments,
+    ),
+    ToolDefinition(
+        "get_project_opening_filings",
+        "Official opening filings, accepted structures, versioned OP and document metadata "
+        "for one freshly resolved project. Only confirmed versions evidence documentary "
+        "release; never actual manufacturing or Operations preparation approval.",
+        ProjectArguments,
+    ),
     ToolDefinition(
         "get_initial_deposit",
         "Official Accounting handoff and initial-deposit record for an approved Commercial "
@@ -67,8 +122,9 @@ TOOL_DEFINITIONS = (
     ),
     ToolDefinition(
         "get_budget_quotation",
-        "Confirmed Budget quotation: items, physical quantities, technical values and document "
-        "metadata, never prices. Resolve an unambiguous project in this run first. Use for "
+        "Confirmed Budget quotation: items, physical quantities, technical values, document "
+        "metadata and optional source-reported economics with explicit availability. Resolve "
+        "an unambiguous project in this run first. Use for"
         "explicit "
         "Budget questions or generic technical questions AFTER Commercial returned unavailable. "
         "Unavailable is not zero; never substitute task counts or document analysis.",
@@ -148,6 +204,8 @@ MAX_RESULT_BYTES = 48_000
 # Identity/permission metadata is unnecessary for model reasoning in 1B.
 _PRIVATE_FIELDS = {
     "createdBy",
+    "createdByName",
+    "isCreatedByMe",
     "assignedToGoogleSubject",
     "recipientGoogleSubject",
     "uploadedBy",
@@ -238,6 +296,12 @@ class ToolBox:
                     "get_client_quotation_decision",
                     "get_quotation_rounds",
                     "get_initial_deposit",
+                    "get_deposit_verifications",
+                    "get_project_measurements",
+                    "get_project_engineering",
+                    "get_project_opening_records",
+                    "get_project_incremental_opening_records",
+                    "get_project_opening_filings",
                 }
                 and isinstance(arguments, ProjectArguments)
                 and (
@@ -246,6 +310,12 @@ class ToolBox:
                 )
             ):
                 raise InvalidToolCall()
+            if isinstance(arguments, SurfaceArguments) and arguments.project_id is not None:
+                if (
+                    arguments.project_id in self._ambiguous
+                    or f"project:{arguments.project_id}" not in self._references
+                ):
+                    raise InvalidToolCall()
             if isinstance(arguments, DocumentArguments):
                 for selection in arguments.selections:
                     if (
@@ -340,6 +410,23 @@ class ToolBox:
                 refs.extend(
                     TaskReference(project_id=task.project_id, task_id=task.id, label=task.type)
                     for task in compared.details.tasks
+                )
+        elif call.name == "get_management_surfaces" and isinstance(arguments, SurfaceArguments):
+            surfaces = await self._tools.get_management_surfaces(
+                arguments.project_id, arguments.skip, arguments.ascending
+            )
+            data = surfaces.model_dump(mode="json", by_alias=True)
+            complete = not surfaces.has_more
+            for surface_project in surfaces.projects:
+                refs.append(
+                    ProjectReference(
+                        project_id=surface_project.project_id,
+                        label=surface_project.project_name,
+                        sg_code=surface_project.sg_code,
+                    )
+                )
+                self.presentation.names.update(
+                    (surface_project.project_name, surface_project.client_name)
                 )
         elif call.name == "get_quotation_portfolio":
             portfolio = await self._tools.get_quotation_portfolio()
@@ -443,6 +530,78 @@ class ToolBox:
                     TaskReference(project_id=t.project_id, task_id=t.id, label=t.type)
                     for t in details.tasks
                 )
+            elif call.name == "get_deposit_verifications":
+                operational_result_0 = await self._tools.get_deposit_verifications(
+                    arguments.project_id
+                )
+                data = {
+                    "projectId": str(arguments.project_id),
+                    "available": operational_result_0 is not None,
+                    "source": "get_deposit_verifications",
+                    "data": operational_result_0.model_dump(mode="json", by_alias=True)
+                    if operational_result_0 is not None
+                    else None,
+                }
+            elif call.name == "get_project_measurements":
+                operational_result_1 = await self._tools.get_project_measurements(
+                    arguments.project_id
+                )
+                data = {
+                    "projectId": str(arguments.project_id),
+                    "available": operational_result_1 is not None,
+                    "source": "get_project_measurements",
+                    "data": operational_result_1.model_dump(mode="json", by_alias=True)
+                    if operational_result_1 is not None
+                    else None,
+                }
+            elif call.name == "get_project_engineering":
+                operational_result_2 = await self._tools.get_project_engineering(
+                    arguments.project_id
+                )
+                data = {
+                    "projectId": str(arguments.project_id),
+                    "available": operational_result_2 is not None,
+                    "source": "get_project_engineering",
+                    "data": operational_result_2.model_dump(mode="json", by_alias=True)
+                    if operational_result_2 is not None
+                    else None,
+                }
+            elif call.name == "get_project_opening_records":
+                operational_result_3 = await self._tools.get_project_opening_records(
+                    arguments.project_id
+                )
+                data = {
+                    "projectId": str(arguments.project_id),
+                    "available": operational_result_3 is not None,
+                    "source": "get_project_opening_records",
+                    "data": operational_result_3.model_dump(mode="json", by_alias=True)
+                    if operational_result_3 is not None
+                    else None,
+                }
+            elif call.name == "get_project_incremental_opening_records":
+                operational_result_4 = await self._tools.get_project_incremental_opening_records(
+                    arguments.project_id
+                )
+                data = {
+                    "projectId": str(arguments.project_id),
+                    "available": operational_result_4 is not None,
+                    "source": "get_project_incremental_opening_records",
+                    "data": operational_result_4.model_dump(mode="json", by_alias=True)
+                    if operational_result_4 is not None
+                    else None,
+                }
+            elif call.name == "get_project_opening_filings":
+                operational_result_5 = await self._tools.get_project_opening_filings(
+                    arguments.project_id
+                )
+                data = {
+                    "projectId": str(arguments.project_id),
+                    "available": operational_result_5 is not None,
+                    "source": "get_project_opening_filings",
+                    "data": operational_result_5.model_dump(mode="json", by_alias=True)
+                    if operational_result_5 is not None
+                    else None,
+                }
             elif call.name == "get_initial_deposit":
                 deposit = await self._tools.get_initial_deposit(arguments.project_id)
                 data = deposit.model_dump(mode="json", by_alias=True)
@@ -495,6 +654,17 @@ class ToolBox:
         }
         result = json.dumps(envelope, ensure_ascii=False, separators=(",", ":"))
         self._guard.check(result)
-        if len(result.encode("utf-8")) > MAX_RESULT_BYTES:
+        result_bytes = len(result.encode("utf-8"))
+        if result_bytes > MAX_RESULT_BYTES:
+            logging.getLogger("sng_intelligence").info(
+                json.dumps(
+                    {
+                        "operation": "tool_result_rejected",
+                        "tool": call.name,
+                        "result_bytes": result_bytes,
+                        "limit_bytes": MAX_RESULT_BYTES,
+                    }
+                )
+            )
             raise ToolResultTooLarge()
         return result

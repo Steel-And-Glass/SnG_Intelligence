@@ -108,7 +108,14 @@ async def test_each_existing_tool_and_model_projection(mock_backend, name, args)
     payload = json.loads(model.inputs[1][0][-1].content)
     assert payload["complete"] is True
     text = json.dumps(payload)
-    for field in ("recipientGoogleSubject", "assignedToGoogleSubject", "createdBy", "uploadedBy"):
+    for field in (
+        "recipientGoogleSubject",
+        "assignedToGoogleSubject",
+        "createdBy",
+        "createdByName",
+        "isCreatedByMe",
+        "uploadedBy",
+    ):
         assert field not in text
     assert all(c["method"] == "GET" for c in calls)
 
@@ -323,6 +330,13 @@ def test_registered_tools_are_explicit_and_schemas_are_closed():
         "get_client_quotation_decision",
         "get_quotation_rounds",
         "get_initial_deposit",
+        "get_management_surfaces",
+        "get_deposit_verifications",
+        "get_project_measurements",
+        "get_project_engineering",
+        "get_project_opening_records",
+        "get_project_incremental_opening_records",
+        "get_project_opening_filings",
         "get_budget_quotation",
         "get_commercial_quotation",
         "analyze_project_documents",

@@ -51,6 +51,11 @@ def quotation_data(
         items=items,
     )
     if isinstance(quotation, ConfirmedBudgetQuotation):
+        data["economics"] = (
+            quotation.economics.model_dump(mode="json", by_alias=True)
+            if quotation.economics is not None
+            else None
+        )
         data["document"] = quotation.document.model_dump(mode="json", by_alias=True)
         data["versionNumber"] = quotation.version_number
     else:

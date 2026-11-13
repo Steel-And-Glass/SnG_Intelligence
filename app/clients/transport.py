@@ -10,10 +10,25 @@ from app.core.errors import OutboundPolicyError
 
 _PROJECT = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
 _PATH = re.compile(
-    rf"/api/(?:auth/me|management/(?:overview|tasks|quotation-portfolio)|projects(?:/{_PROJECT}"
+    rf"/api/(?:auth/me|management/(?:overview|tasks|quotation-portfolio|analytics/surfaces)|projects(?:/{_PROJECT}"
     rf"(?:/tasks|/documents(?:/{_PROJECT}/file)?|/notifications"
-    rf"|/initial-deposit|/quotation-rounds|/client-quotation-decision|/budget-quotation/view|/commercial-quotation/view)?)?)"
+    rf"|/deposit-verifications|/measurements|/engineering|/opening-records|/incremental-opening-records|/opening-filings|/initial-deposit|/quotation-rounds|/client-quotation-decision|/budget-quotation/view|/commercial-quotation/view)?)?)"
 )
+
+
+def _safe_query(url: httpx.URL) -> bool:
+    if not url.query:
+        return True
+    if url.path != "/api/management/analytics/surfaces":
+        return False
+    # Only the canonical query constructed by our typed surfaces method is accepted.
+    return (
+        re.fullmatch(
+            rf"skip=(?:0|[1-9][0-9]{{0,5}}|1000000)&ascending=(?:true|false)(?:&projectId={_PROJECT})?",
+            url.query.decode("ascii"),
+        )
+        is not None
+    )
 
 
 class _RejectCookies(DefaultCookiePolicy):
@@ -38,9 +53,9 @@ class ReadOnlyTransport(httpx.AsyncBaseTransport):
             or (url.scheme, url.host, url.port)
             != (self._origin.scheme, self._origin.host, self._origin.port)
             or url.userinfo
-            or url.query
+            or not _safe_query(url)
             or url.fragment
-            or not _PATH.fullmatch(url.raw_path.decode("ascii"))
+            or not _PATH.fullmatch(url.raw_path.split(b"?", 1)[0].decode("ascii"))
         ):
             raise OutboundPolicyError()
         return await self._inner.handle_async_request(request)

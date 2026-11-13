@@ -112,7 +112,8 @@ def payloads():
             "sgCode": None,
             "createdAt": DATE,
             "updatedAt": DATE,
-            "createdBy": None,
+            "createdByName": None,
+            "isCreatedByMe": False,
         },
         f"/api/projects/{PROJECT_ID}/tasks": [
             {

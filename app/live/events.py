@@ -71,7 +71,46 @@ class Closed(WireModel):
 
 
 class ProviderErrorCode(WireModel):
-    code: str = Field(max_length=128)
+    code: str = Field(max_length=128, repr=False)
+    type: str | None = Field(default=None, max_length=128, repr=False)
+
+    def safe_category(self) -> str:
+        # Exact closed vocabulary: arbitrary provider strings never become log fields.
+        known = {
+            "responses_validation_failed",
+            "rate_limit_exceeded",
+            "rate_limit_error",
+            "tool_outputs_required",
+            "function_call_outputs_required",
+            "server_error",
+            "insufficient_quota",
+            "context_length_exceeded",
+            "max_output_tokens",
+            "invalid_api_key",
+            "model_not_found",
+            "permission_denied",
+            "response_generation_failed",
+            "response_timeout",
+            "response_cancelled",
+            "response_in_progress",
+            "response_not_found",
+            "invalid_request_error",
+            "unknown_parameter",
+            "invalid_parameter",
+            "invalid_value",
+        }
+        return self.code if self.code in known else "other_provider_error"
+
+    def safe_type(self) -> str:
+        known = {
+            "invalid_request_error",
+            "server_error",
+            "rate_limit_error",
+            "authentication_error",
+            "permission_error",
+            "api_error",
+        }
+        return self.type if self.type in known else "unknown"
 
 
 class ProviderError(WireModel):

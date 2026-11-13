@@ -112,4 +112,5 @@ def render_answer(text: str, names: set[str]) -> tuple[str, str]:
     spoken = _outside_names(spoken, names, plain)
     spoken = normalize_speech(spoken, names)
     spoken = _outside_names(spoken, names, speak_cop)
+    spoken = _outside_names(spoken, names, lambda part: part.replace("m²", "metros cuadrados"))
     return visual, spoken

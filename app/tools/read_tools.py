@@ -12,11 +12,20 @@ from app.contracts.client_decision import ClientQuotationDecision
 from app.contracts.documents import Document, ProjectDocuments
 from app.contracts.management import AttentionItem, ManagementOverview, ManagementTask
 from app.contracts.notifications import ProjectNotification
+from app.contracts.operations import (
+    DepositVerifications,
+    Engineering,
+    IncrementalOpeningRecords,
+    Measurements,
+    OpeningFilings,
+    OpeningRecords,
+)
 from app.contracts.portfolio import ManagementQuotationPortfolio
 from app.contracts.presentation import Coverage
 from app.contracts.projects import ProjectCandidate, ProjectDetails
 from app.contracts.quotation_rounds import QuotationRounds
 from app.contracts.quotations import ConfirmedBudgetQuotation, ConfirmedCommercialQuotation
+from app.contracts.surfaces import ManagementSurfaces
 from app.core.errors import InvalidArguments, ManagementRequired
 from app.core.latency import measure
 from app.documents.download import DownloadedDocument
@@ -62,6 +71,46 @@ class ReadTools:
 
     def __reduce__(self) -> Never:
         raise TypeError("Read tools cannot be serialized")
+
+    async def get_management_surfaces(
+        self, project_id: UUID | None, skip: int, ascending: bool
+    ) -> ManagementSurfaces:
+        await self._authorize()
+        return await self._client.get_management_surfaces(project_id, skip, ascending)
+
+    async def get_deposit_verifications(
+        self, project_id: UUID | str
+    ) -> DepositVerifications | None:
+        identifier = validate_project_id(project_id)
+        await self._authorize()
+        return await self._client.get_deposit_verifications(identifier)
+
+    async def get_project_measurements(self, project_id: UUID | str) -> Measurements | None:
+        identifier = validate_project_id(project_id)
+        await self._authorize()
+        return await self._client.get_project_measurements(identifier)
+
+    async def get_project_engineering(self, project_id: UUID | str) -> Engineering | None:
+        identifier = validate_project_id(project_id)
+        await self._authorize()
+        return await self._client.get_project_engineering(identifier)
+
+    async def get_project_opening_records(self, project_id: UUID | str) -> OpeningRecords | None:
+        identifier = validate_project_id(project_id)
+        await self._authorize()
+        return await self._client.get_project_opening_records(identifier)
+
+    async def get_project_incremental_opening_records(
+        self, project_id: UUID | str
+    ) -> IncrementalOpeningRecords | None:
+        identifier = validate_project_id(project_id)
+        await self._authorize()
+        return await self._client.get_project_incremental_opening_records(identifier)
+
+    async def get_project_opening_filings(self, project_id: UUID | str) -> OpeningFilings | None:
+        identifier = validate_project_id(project_id)
+        await self._authorize()
+        return await self._client.get_project_opening_filings(identifier)
 
     async def get_quotation_portfolio(self) -> ManagementQuotationPortfolio:
         await self._authorize()

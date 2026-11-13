@@ -6,12 +6,6 @@ from pydantic import ConfigDict, Field, model_validator
 from app.contracts.base import BackendContract
 
 
-class ProjectCreator(BackendContract):
-    subject: str
-    email: str | None
-    name: str | None
-
-
 class Project(BackendContract):
     id: UUID
     client_id: UUID
@@ -21,7 +15,8 @@ class Project(BackendContract):
     sg_code: str | None
     created_at: datetime
     updated_at: datetime
-    created_by: ProjectCreator | None
+    created_by_name: str | None
+    is_created_by_me: bool
 
 
 class ProjectTask(BackendContract):

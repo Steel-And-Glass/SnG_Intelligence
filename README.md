@@ -29,12 +29,12 @@ app/
   api/live.py                # Creación, delegación y revocación local de Live
   live/                      # Contratos, configuración, prompts, provider y registry
   auth/management_guard.py   # Bearer y validación oficial de Gerencia
-  clients/sng_control.py     # Ocho operaciones GET cerradas
+  clients/sng_control.py     # Operaciones GET cerradas
   clients/transport.py       # Allowlist de método, origen y rutas; sin cookies
   clients/openai.py          # Lifecycle SDK común, TLS nativo y logging seguro
   contracts/                # DTO Pydantic del contrato HTTP, sin lógica de negocio
   core/                     # Configuración, errores seguros y correlación
-  tools/read_tools.py        # Seis herramientas internas, incluida find_projects
+  tools/read_tools.py        # Herramientas autorizadas, incluida find_projects
   voice/                    # Contratos STT/TTS, adapters, configuración y upload acotado
   voice/style.py            # Estilo TTS centralizado por responseType
 tests/                      # HTTP mockeado, sin backend real
@@ -1778,3 +1778,57 @@ No operational writes, Live changes, memory changes or Portfolio/Mix changes. De
 Backend Accounting Initial Deposit V1 after its migrations are applied manually. Offline tests
 validate contracts, authorization, isolation and grounding protocol; they do not establish
 real-provider answer quality or replace the accumulated operational smoke.
+
+
+## I1/I2 — integración con Control actual
+
+El catálogo compartido por chat, Voice y delegación Live contiene 22 herramientas.
+Se agregan `get_management_surfaces`, `get_deposit_verifications`,
+`get_project_measurements`, `get_project_engineering`, `get_project_opening_records`,
+`get_project_incremental_opening_records` y `get_project_opening_filings`.
+Las lecturas por proyecto requieren una referencia fresca y no ambigua en el turno.
+
+Superficies usa el agregado oficial y la página ordenada de Control, con filtros cerrados
+`project_id` (null para todos), `skip` y `ascending`. Conserva valores Decimal, unidad,
+cobertura, exclusiones y disponibilidad. La superficie cotizada ya incluye cantidades;
+la medida es referencia rectangular, no fabricación. No se restan ambas para inferir
+pendientes ni avance; la superficie congelada radicada puede seguir no disponible.
+El texto conserva m² y la presentación hablada expande la unidad a «metros cuadrados».
+
+Las proyecciones operativas conservan estructuras, versiones y aceptaciones parciales,
+pero excluyen Subjects, hashes, rutas internas y capacidades de escritura. Son metadata:
+no descargan fotos, croquis ni nuevos documentos. El límite existente de 48.000 bytes
+por resultado sigue vigente; un resultado excesivo falla de forma segura, sin truncarse.
+Los identificadores documentales de estas vistas no conceden acceso automático al analizador.
+
+`ProjectResponse` consume ahora `createdByName` / `isCreatedByMe`; ninguno llega al modelo.
+Presupuestos acepta `economics` opcional, con estado, moneda COP y precios exactos de esa
+fuente. No sustituye precios comerciales vigentes ni convierte cotizaciones en ingresos.
+
+El BFF conserva la UI existente y reenvía el rol activo Management ya validado.
+Intelligence rechaza roles explícitos distintos, vacíos o duplicados; por compatibilidad,
+un cliente directo sin header sigue restringido a Management por `/api/auth/me`.
+El header nunca concede permisos: Control valida membresía y acceso a cada lectura.
+
+No se exponen preparaciones/extracciones de Operaciones: el Backend exige OperationsHead.
+Tampoco se construyen agregados globales de anticipos, paquetes o liberaciones mediante
+barridos de proyectos. Para carga y retrasos se usan tareas/overview oficiales.
+
+Auditoría de rutas, validación y smoke pendiente: [I1_I2_REPORT.md](I1_I2_REPORT.md).
+
+
+## Live: consultas demasiado amplias y diagnóstico de errores
+
+Un `tool_result_too_large` sigue abortando el Agent run sin entregar datos truncados al
+modelo. En Live se recupera únicamente ese turno con una respuesta `unavailable` que pide
+acotar la consulta, sin referencias; la sesión permite una pregunta nueva. El límite de
+48.000 bytes no cambia. Autorización, credenciales, presupuesto de ejecución y protocolo
+conservan el cierre seguro. La respuesta de indisponibilidad puede persistirse como turno
+semántico; no se persiste el resultado excesivo.
+
+`tool_result_rejected` registra solo el nombre cerrado de la tool y tamaños numéricos.
+`live_provider_diagnostic` registra categorías cerradas de código/tipo del proveedor;
+no registra mensajes, parámetros, IDs de eventos externos ni contenido empresarial.
+Los códigos desconocidos siguen siendo `other_provider_error`; el diagnóstico no autoriza
+reintentos ni permite ignorar un fallo de protocolo. Un error de proveedor posterior a
+`delegated` no significa que haya fallado la lectura del Backend.

@@ -29,6 +29,8 @@ AREA_LABELS_ES = {
     "Budgets": "Presupuestos",
     "Commercial": "Comercial",
     "Accounting": "Contabilidad",
+    "Installation": "Instalación",
+    "Engineering": "Ingeniería",
 }
 
 

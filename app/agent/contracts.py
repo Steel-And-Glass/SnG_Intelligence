@@ -91,6 +91,12 @@ class ProjectArguments(StrictModel):
     project_id: UUID
 
 
+class SurfaceArguments(StrictModel):
+    project_id: UUID | None
+    skip: int = Field(ge=0, le=1_000_000)
+    ascending: bool
+
+
 class SearchArguments(StrictModel):
     query: str = Field(min_length=1, max_length=200)
 

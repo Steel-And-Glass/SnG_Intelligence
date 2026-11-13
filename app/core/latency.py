@@ -114,6 +114,13 @@ BackendOperation = Literal[
     "quotation_rounds",
     "initial_deposit",
     "quotation_portfolio",
+    "management_surfaces",
+    "deposit_verifications",
+    "measurements",
+    "engineering",
+    "opening_records",
+    "incremental_opening_records",
+    "opening_filings",
 ]
 
 

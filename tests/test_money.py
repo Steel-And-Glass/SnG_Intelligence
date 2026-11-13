@@ -89,7 +89,9 @@ def test_only_explicit_valid_colombian_money_pattern_changes(text):
 def test_proper_names_and_technical_values_remain_unchanged():
     text = "Ítem V5, cantidad 1, 11,074 m², total $5.513.429,14 COP."
     visual, spoken = render_answer(text, {"V5"})
-    assert visual == text and spoken.startswith("Ítem V5, cantidad 1, 11,074 m², total cinco")
+    assert visual == text and spoken.startswith(
+        "Ítem V5, cantidad 1, 11,074 metros cuadrados, total cinco"
+    )
     name = "Proyecto $21,00 COP"
     assert render_answer(name, {name}) == (name, name)
 
